@@ -40,13 +40,14 @@ from .convert import from_pandas, to_pandas
 from .exceptions import (
     ArnioError,
     CsvReadError,
+    JsonlReadError,
     PipelineStepError,
     TypeCastError,
     UnknownStepError,
 )
 from .frame import ArFrame
 from .integrations import ArnioPandasAccessor
-from .io import read_csv, scan_csv, write_csv
+from .io import read_csv, read_jsonl, scan_csv, write_csv
 from .pipeline import pipeline, register_step
 from .quality import (
     CleanExplanation,
@@ -92,6 +93,7 @@ __all__ = [
     "ArFrame",
     # I/O
     "read_csv",
+    "read_jsonl",
     "write_csv",
     "scan_csv",
     # Cleaning
@@ -161,6 +163,7 @@ __all__ = [
     "UnknownStepError",
     "ArnioError",
     "CsvReadError",
+    "JsonlReadError",
     "TypeCastError",
     "PipelineStepError",
     "normalize_unicode",
