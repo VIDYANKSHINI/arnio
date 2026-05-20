@@ -1576,3 +1576,123 @@ def test_profile_duplicate_count_hash_path_matches_pandas_baseline_at_scale():
 
     assert hash_count == baseline_count
     assert ar.profile(frame).duplicate_rows == baseline_count
+
+
+# ── numeric histogram tests ──────────────────────────────────────────────────
+
+
+def test_profile_numeric_histogram_normal():
+    # Test normal distribution / sequence
+    df = pd.DataFrame({"nums": list(range(1, 101))})
+    frame = ar.from_pandas(df)
+    report = ar.profile(frame)
+    profile = report.columns["nums"]
+
+    assert profile.histogram is not None
+    assert len(profile.histogram) == 10
+
+    # Check that counts sum to 100
+    counts = [c for _, _, c, _ in profile.histogram]
+    ratios = [r for _, _, _, r in profile.histogram]
+    assert sum(counts) == 100
+    assert abs(sum(ratios) - 1.0) < 1e-9
+
+    # Check bounds
+    assert profile.histogram[0][0] == 1.0
+    assert profile.histogram[-1][1] == 100.0
+
+    # Serialization test
+    dct = profile.to_dict()
+    assert "histogram" in dct
+    assert len(dct["histogram"]) == 10
+    assert dct["histogram"][0]["bucket_start"] == 1.0
+    assert dct["histogram"][0]["count"] == 10
+    assert abs(dct["histogram"][0]["ratio"] - 0.1) < 1e-9
+
+
+def test_profile_numeric_histogram_constant_values():
+    # Test constant values
+    df = pd.DataFrame({"nums": [5.0] * 20})
+    frame = ar.from_pandas(df)
+    report = ar.profile(frame)
+    profile = report.columns["nums"]
+
+    assert profile.histogram is not None
+    assert len(profile.histogram) == 10
+
+    counts = [c for _, _, c, _ in profile.histogram]
+    assert sum(counts) == 20
+
+    # numpy.histogram handles constant values by setting bin boundaries offset by a small delta (typically +/- 0.5)
+    # let's assert the counts are correct and serialize properly
+    dct = profile.to_dict()
+    assert "histogram" in dct
+    assert len(dct["histogram"]) == 10
+
+
+def test_profile_numeric_histogram_empty_and_all_nulls():
+    # All nulls
+    df = pd.DataFrame({"nums": [None, None, None]})
+    df["nums"] = df["nums"].astype("float64")
+    frame = ar.from_pandas(df)
+    report = ar.profile(frame)
+    profile = report.columns["nums"]
+    assert profile.histogram is None
+
+    # Empty column (0 rows)
+    df_empty = pd.DataFrame({"nums": pd.Series(dtype="float64")})
+    frame_empty = ar.from_pandas(df_empty)
+    report_empty = ar.profile(frame_empty)
+    profile_empty = report_empty.columns["nums"]
+    assert profile_empty.histogram is None
+
+
+def test_profile_numeric_histogram_missing_values():
+    # Mix of nulls and numeric values
+    df = pd.DataFrame({"nums": [10.0, None, 20.0, None, 30.0]})
+    frame = ar.from_pandas(df)
+    report = ar.profile(frame)
+    profile = report.columns["nums"]
+
+    assert profile.histogram is not None
+    assert len(profile.histogram) == 10
+    counts = [c for _, _, c, _ in profile.histogram]
+    assert sum(counts) == 3  # only non-null values are counted
+
+    ratios = [r for _, _, _, r in profile.histogram]
+    assert abs(sum(ratios) - 1.0) < 1e-5
+
+
+def test_profile_numeric_histogram_small_sample():
+    # Just 1 value
+    df = pd.DataFrame({"nums": [42.0]})
+    frame = ar.from_pandas(df)
+    report = ar.profile(frame)
+    profile = report.columns["nums"]
+
+    assert profile.histogram is not None
+    assert len(profile.histogram) == 10
+    counts = [c for _, _, c, _ in profile.histogram]
+    assert sum(counts) == 1
+
+
+def test_profile_numeric_histogram_non_numeric():
+    # String column should have histogram = None
+    df = pd.DataFrame({"names": ["Alice", "Bob", "Charlie"]})
+    frame = ar.from_pandas(df)
+    report = ar.profile(frame)
+    profile = report.columns["names"]
+
+    assert profile.histogram is None
+    assert "histogram" in profile.to_dict()
+    assert profile.to_dict()["histogram"] is None
+
+
+def test_profile_numeric_histogram_to_pandas():
+    df = pd.DataFrame({"nums": [1, 2, 3]})
+    frame = ar.from_pandas(df)
+    report = ar.profile(frame)
+
+    pdf = report.to_pandas()
+    assert "histogram" in pdf.columns
+    assert pdf.loc[pdf["name"] == "nums", "histogram"].values[0] is not None

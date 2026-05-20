@@ -1280,7 +1280,11 @@ DataQualityReport(
       "mean": 87.9,
       "min": 85.5,
       "max": 90.0,
-      "warnings": ["contains_nulls"]
+      "warnings": ["contains_nulls"],
+      "histogram": [
+        {"bucket_start": 85.5, "bucket_end": 86.0, "count": 1, "ratio": 0.33},
+        {"bucket_start": 86.0, "bucket_end": 90.0, "count": 2, "ratio": 0.67}
+      ]
     },
     "city": {
       "dtype": "string",
