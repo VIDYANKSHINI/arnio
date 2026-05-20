@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.16.0](https://github.com/im-anishraj/arnio/compare/v1.15.0...v1.16.0) (2026-05-20)
+
+
+### Features
+
+* warn on deprecated pipeline step aliases ([#853](https://github.com/im-anishraj/arnio/issues/853)) ([09bdb72](https://github.com/im-anishraj/arnio/commit/09bdb72a547856beb309bc1c93e1a0e0555f99d9))
+
+
+### Performance Improvements
+
+* **frame:** implement native select_columns path ([#917](https://github.com/im-anishraj/arnio/issues/917)) ([c9b6ba3](https://github.com/im-anishraj/arnio/commit/c9b6ba365e5e9e9832f2f4d39d4a4b4bac794a33))
+
 ## [1.15.0](https://github.com/im-anishraj/arnio/compare/v1.14.0...v1.15.0) (2026-05-20)
 
 
