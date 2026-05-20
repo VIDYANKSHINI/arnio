@@ -1696,3 +1696,34 @@ def test_profile_numeric_histogram_to_pandas():
     pdf = report.to_pandas()
     assert "histogram" in pdf.columns
     assert pdf.loc[pdf["name"] == "nums", "histogram"].values[0] is not None
+
+
+def test_profile_numeric_histogram_non_finite_values():
+    # Test handling of infinite values in histogram calculation
+    from arnio._core import _DType, _Frame
+    from arnio.frame import ArFrame
+
+    cpp_frame = _Frame.from_dict(
+        {"nums": [1.0, 2.0, float("inf"), float("-inf"), None, 3.0]},
+        {"nums": _DType.FLOAT64},
+    )
+    frame = ArFrame(cpp_frame)
+    report = ar.profile(frame)
+    profile = report.columns["nums"]
+
+    # The histogram should filter out +/- inf and NaNs, binning only [1.0, 2.0, 3.0]
+    assert profile.histogram is not None
+    assert len(profile.histogram) == 10
+
+    counts = [c for _, _, c, _ in profile.histogram]
+    assert sum(counts) == 3
+
+    # All infinities (no finite values to bin)
+    cpp_frame_all_inf = _Frame.from_dict(
+        {"nums": [float("inf"), float("-inf")]},
+        {"nums": _DType.FLOAT64},
+    )
+    frame_all_inf = ArFrame(cpp_frame_all_inf)
+    report_all_inf = ar.profile(frame_all_inf)
+    profile_all_inf = report_all_inf.columns["nums"]
+    assert profile_all_inf.histogram is None

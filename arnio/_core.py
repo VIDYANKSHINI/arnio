@@ -9,6 +9,8 @@ import sys
 # On Windows, Python 3.8+ does not load DLLs from PATH automatically.
 # We scan PATH for directories containing g++.exe or runtime DLLs and add them.
 if sys.platform == "win32":
+    import glob
+
     for path in os.environ.get("PATH", "").split(os.pathsep):
         if path and os.path.isdir(path):
             if (
@@ -18,15 +20,27 @@ if sys.platform == "win32":
             ):
                 try:
                     os.add_dll_directory(path)
-                except Exception:
+                except (OSError, AttributeError):
                     pass
-    # Also support the winlibs package installed via winget
-    winlibs_path = r"C:\Users\VIDYANKSHINI\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\bin"
-    if os.path.exists(winlibs_path):
-        try:
-            os.add_dll_directory(winlibs_path)
-        except Exception:
-            pass
+
+    # Also support the winlibs package installed via winget dynamically
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if local_app_data:
+        winget_pattern = os.path.join(
+            local_app_data,
+            "Microsoft",
+            "WinGet",
+            "Packages",
+            "BrechtSanders.WinLibs.*",
+            "mingw64",
+            "bin",
+        )
+        for path in glob.glob(winget_pattern):
+            if os.path.isdir(path):
+                try:
+                    os.add_dll_directory(path)
+                except (OSError, AttributeError):
+                    pass
 
 try:
     from ._arnio_cpp import (  # type: ignore[import-not-found]  # noqa: I001

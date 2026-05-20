@@ -454,11 +454,17 @@ class DataQualityReport:
                     if max_ratio == 0:
                         max_ratio = 1.0
                     bars = []
-                    for start, end, count, r in col.histogram:
+                    last_idx = len(col.histogram) - 1
+                    for idx, (start, end, count, r) in enumerate(col.histogram):
                         height_pct = (r / max_ratio) * 100
+                        bucket_label = (
+                            f"[{start:.4g}, {end:.4g}]"
+                            if idx == last_idx
+                            else f"[{start:.4g}, {end:.4g})"
+                        )
                         bars.append(
                             f'<div style="flex:1;height:{height_pct}%;background:#3b82f6;min-height:1px;border-radius:1px;" '
-                            f'title="[{start:.4g}, {end:.4g}): {count} ({r:.1%})"></div>'
+                            f'title="{bucket_label}: {count} ({r:.1%})"></div>'
                         )
                     top_html = (
                         f'<div style="display:inline-flex;align-items:flex-end;gap:1.5px;'
@@ -1699,17 +1705,21 @@ def _profile_column(
             q95 = round(float(quantiles.loc[0.95]), 4)
 
             # Calculate histogram
-            counts, bin_edges = np.histogram(numeric_non_null.to_numpy(), bins=10)
-            total = int(counts.sum())
-            histogram = [
-                (
-                    float(bin_edges[i]),
-                    float(bin_edges[i + 1]),
-                    int(counts[i]),
-                    _ratio(int(counts[i]), total),
-                )
-                for i in range(len(counts))
-            ]
+            finite_values = numeric_non_null[np.isfinite(numeric_non_null)]
+            if len(finite_values):
+                counts, bin_edges = np.histogram(finite_values.to_numpy(), bins=10)
+                total = int(counts.sum())
+                histogram = [
+                    (
+                        float(bin_edges[i]),
+                        float(bin_edges[i + 1]),
+                        int(counts[i]),
+                        _ratio(int(counts[i]), total),
+                    )
+                    for i in range(len(counts))
+                ]
+            else:
+                histogram = None
     elif len(non_null) and (
         dtype == "string" or pd.api.types.is_string_dtype(series.dtype)
     ):
