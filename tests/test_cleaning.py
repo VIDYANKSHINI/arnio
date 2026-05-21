@@ -176,6 +176,173 @@ class TestValidateColumnsExist:
             ar.rename_columns(frame, {"missing": "new_name"})
 
 
+class TestSharedColumnSequenceValidation:
+    @pytest.mark.parametrize(
+        ("func", "kwargs", "error_type", "message"),
+        [
+            (
+                "keep_rows_with_nulls",
+                {"subset": ["missing"]},
+                KeyError,
+                "Missing columns for keep_rows_with_nulls",
+            ),
+            (
+                "fill_nulls",
+                {"value": 0, "subset": ["missing"]},
+                KeyError,
+                "Missing columns for fill_nulls",
+            ),
+            (
+                "drop_duplicates",
+                {"subset": ["missing"]},
+                KeyError,
+                "Missing columns for drop_duplicates",
+            ),
+            (
+                "strip_whitespace",
+                {"subset": ["missing"]},
+                KeyError,
+                "Missing columns for strip_whitespace",
+            ),
+            (
+                "normalize_case",
+                {"subset": ["missing"]},
+                KeyError,
+                "Missing columns for normalize_case",
+            ),
+            (
+                "normalize_unicode",
+                {"subset": ["missing"]},
+                KeyError,
+                "Missing columns for normalize_unicode",
+            ),
+            (
+                "standardize_missing_tokens",
+                {"subset": ["missing"]},
+                ValueError,
+                "Unknown columns in subset",
+            ),
+            (
+                "coalesce_columns",
+                {"subset": ["missing"]},
+                KeyError,
+                "Missing columns for coalesce_columns",
+            ),
+        ],
+    )
+    def test_shared_subset_validation_rejects_missing_columns(
+        self,
+        sample_csv,
+        func,
+        kwargs,
+        error_type,
+        message,
+    ):
+        frame = ar.read_csv(sample_csv)
+
+        with pytest.raises(error_type, match=message):
+            getattr(ar, func)(frame, **kwargs)
+
+    def test_coalesce_columns_selects_first_non_null_value(self):
+        frame = ar.from_pandas(
+            pd.DataFrame(
+                {
+                    "nickname": [None, "Bee", None],
+                    "name": ["Alice", "Bob", "Cara"],
+                }
+            )
+        )
+
+        result = ar.coalesce_columns(
+            frame,
+            subset=["nickname", "name"],
+            output_column="display_name",
+        )
+        df = ar.to_pandas(result)
+
+        assert df["display_name"].tolist() == ["Alice", "Bee", "Cara"]
+
+    def test_coalesce_columns_rejects_empty_subset(self):
+        frame = ar.from_pandas(pd.DataFrame({"name": ["Alice"]}))
+
+        with pytest.raises(ValueError, match="subset must contain at least one column"):
+            ar.coalesce_columns(frame, subset=[])
+
+    @pytest.mark.parametrize(
+        ("func", "kwargs", "message"),
+        [
+            ("drop_columns", {"columns": 123}, "must be a sequence of column names"),
+            (
+                "fill_nulls",
+                {"value": 0, "subset": 123},
+                "must be a sequence of column names",
+            ),
+            ("drop_duplicates", {"subset": 123}, "must be a sequence of column names"),
+            (
+                "strip_whitespace",
+                {"subset": 123},
+                "must be a sequence of column names",
+            ),
+            ("normalize_case", {"subset": 123}, "must be a sequence of column names"),
+            (
+                "normalize_unicode",
+                {"subset": 123},
+                "must be a sequence of column names",
+            ),
+            (
+                "combine_columns",
+                {"subset": 123, "separator": "-", "output_column": "combined"},
+                "must be a sequence of column names",
+            ),
+            (
+                "coalesce_columns",
+                {"subset": 123, "output_column": "combined"},
+                "must be a list of column names",
+            ),
+        ],
+    )
+    def test_shared_subset_validation_rejects_non_sequence_types(
+        self,
+        sample_csv,
+        func,
+        kwargs,
+        message,
+    ):
+        frame = ar.read_csv(sample_csv)
+
+        with pytest.raises(TypeError, match=message):
+            getattr(ar, func)(frame, **kwargs)
+
+    def test_drop_columns_allows_duplicate_entries(self):
+        frame = ar.from_pandas(
+            pd.DataFrame(
+                {
+                    "id": [1, 2],
+                    "debug": ["x", "y"],
+                    "name": ["Alice", "Bob"],
+                }
+            )
+        )
+
+        result = ar.drop_columns(frame, ["debug", "debug"])
+        df = ar.to_pandas(result)
+
+        assert list(df.columns) == ["id", "name"]
+
+    def test_combine_columns_preserves_duplicate_subset_entries(self):
+        frame = ar.from_pandas(pd.DataFrame({"word": ["go"], "suffix": ["!"]}))
+
+        result = ar.combine_columns(
+            frame,
+            subset=["word", "word", "suffix"],
+            separator="-",
+            output_column="combined",
+        )
+        df = ar.to_pandas(result)
+
+        assert df["combined"].tolist() == ["go-go-!"]
+
+
 class TestDropDuplicates:
     def test_drop_dupes_first(self, csv_with_duplicates):
         frame = ar.read_csv(csv_with_duplicates)
