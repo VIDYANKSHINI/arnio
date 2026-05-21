@@ -94,6 +94,7 @@ class CsvConfig:
     encoding_errors: str
     trim_headers: bool
     thousands_separator: str | None
+    decimal_separator: str
     mode: str
     null_values: list[str] | None
     usecols: list[str] | None
