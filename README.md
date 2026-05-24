@@ -1703,6 +1703,11 @@ null values were observed during profiling.
 | **v1.3** | Chunked / streaming processing · Parquet & JSON readers | 📋 Planned |
 | **v1.4** | Parallel column processing · SIMD string operations | 💭 Exploring |
 
+Before expanding the backlog again, maintainers should complete the
+**[Core Stability Sprint](CORE_STABILITY_SPRINT.md)**: install reliability,
+correctness hardening, public API stability, benchmark baselines, and PR queue
+hygiene.
+
 > For CLI command reference and examples, see [CLI_REFERENCE.md](CLI_REFERENCE.md).
 <br>
 
@@ -1728,6 +1733,9 @@ Discord is for fast conversation and support. GitHub remains the source of truth
 
 ## 📚 Documentation
 
+- [Project Direction](PROJECT_DIRECTION.md)
+- [Core Stability Sprint](CORE_STABILITY_SPRINT.md)
+- [Roadmap](ROADMAP.md)
 - [Troubleshooting Guide](docs/TROUBLESHOOTING.md)
 
 ## 🤝 Contribute
