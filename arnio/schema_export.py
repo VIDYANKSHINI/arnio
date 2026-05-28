@@ -98,13 +98,11 @@ def _emit_scalar(value: Any) -> str:
     raise TypeError(f"Unsupported scalar type: {type(value)!r}")
 
 
+# Validate nested container values recursively.
 def _validate_serializable(value: Any) -> None:
-    if isinstance(value, _SCALAR_TYPES):
-        return
+    """Validate recursively that a value can be serialized."""
 
-    if isinstance(value, set):
-        for item in value:
-            _validate_serializable(item)
+    if isinstance(value, _SCALAR_TYPES):
         return
 
     if isinstance(value, list):
@@ -112,12 +110,49 @@ def _validate_serializable(value: Any) -> None:
             _validate_serializable(item)
         return
 
-    if isinstance(value, dict):
-        for item in value.values():
+    if isinstance(value, set):
+        for item in value:
             _validate_serializable(item)
         return
 
-    raise TypeError(f"schema_to_yaml does not support values of type {type(value)!r}.")
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if not isinstance(k, str):
+                raise TypeError("schema dict keys must be strings")
+
+            _validate_serializable(v)
+
+        return
+
+    raise TypeError(
+        f"schema_to_yaml does not support values of type "
+        f"{type(value)!r}. Only str, int, float, bool, "
+        "None, list, and dict are allowed."
+    )
+
+
+# added normalize_serializable function
+def _normalize_serializable(value: Any) -> Any:
+    """Recursively normalize serialization-safe values.
+
+    - dict keys are sorted deterministically
+    - sets are converted into sorted lists
+    - lists are normalized recursively
+    - unsupported values raise TypeError
+    """
+    _validate_serializable(value)
+
+    if isinstance(value, dict):
+        return {k: _normalize_serializable(v) for k, v in sorted(value.items())}
+    # Convert sets into deterministic sorted lists since YAML
+    # emission only supports list-like serialized output.
+    if isinstance(value, set):
+        return sorted(_normalize_serializable(v) for v in value)
+
+    if isinstance(value, list):
+        return [_normalize_serializable(v) for v in value]
+
+    return value
 
 
 def _emit_value(value: Any, depth: int) -> str:
@@ -228,36 +263,37 @@ def schema_to_dict(schema: dict | Any) -> dict:
             result["strict"] = schema.strict
         if hasattr(schema, "unique"):
             result["unique"] = schema.unique
+
         return result
 
     # ── Raw dict path ────────────────────────────────────────────────────────
     if isinstance(schema, dict):
-        # Detect explicit structured input: {"fields": {...}, "strict": ..., "unique": ...}
-        # Only in this shape should we extract top-level strict/unique as metadata.
+        # Detect explicit structured input:
+        # {"fields": {...}, "strict": ..., "unique": ...}
         if "fields" in schema and isinstance(schema["fields"], dict):
             raw_fields = schema["fields"]
             metadata = {k: v for k, v in schema.items() if k != "fields"}
         else:
-            # Flat scan_csv style — ALL keys are field names, none are metadata
+            # Flat scan_csv-style dict:
+            # all keys are field names
             raw_fields = schema
             metadata = {}
 
         normalised = {}
+
         for field_name in sorted(raw_fields.keys()):
             value = raw_fields[field_name]
+
+            # Recursively normalize nested containers
+            # into serialization-safe deterministic values.
             if isinstance(value, str):
                 normalised[field_name] = {"type": value}
-            elif isinstance(value, dict):
-                cleaned = {}
-                for k, v in sorted(value.items()):
-                    cleaned[k] = sorted(v) if isinstance(v, set) else v
-                _validate_serializable(cleaned)
-                normalised[field_name] = cleaned
             else:
-                normalised[field_name] = value
+                normalised[field_name] = _normalize_serializable(value)
 
         result = {"fields": normalised}
         result.update(metadata)
+
         return result
 
     raise TypeError(
