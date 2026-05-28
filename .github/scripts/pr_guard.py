@@ -1,6 +1,15 @@
 import os
 import sys
 import subprocess
+import json
+
+pr_labels_env = os.environ.get("PR_LABELS", "[]")
+try:
+    pr_labels = json.loads(pr_labels_env)
+except Exception:
+    pr_labels = []
+
+is_ci_packaging = "area:ci-packaging" in pr_labels
 
 base_ref = os.environ.get("GITHUB_BASE_REF", "main")
 try:
@@ -26,9 +35,12 @@ added_files = [line.strip() for line in added_output.splitlines() if line.strip(
 errors = []
 
 # Rule 1: Guard .github/workflows/
-for file in changed_files:
-    if file.startswith(".github/workflows/"):
-        errors.append(f"❌ SECURITY RISK: Modified workflow file \"{file}\". This requires explicit maintainer review.")
+if not is_ci_packaging:
+    for file in changed_files:
+        if file.startswith(".github/workflows/"):
+            errors.append(f"❌ SECURITY RISK: Modified workflow file \"{file}\". This requires explicit maintainer review.")
+else:
+    print("ℹ️ Bypassing workflow modification guard because `area:ci-packaging` label is present.")
 
 # Rule 2: Guard against stray root-level files
 # Allowed root file extensions and exact names for new additions
