@@ -45,11 +45,11 @@ if not is_ci_packaging:
     for file in changed_files:
         if file.startswith(".github/workflows/"):
             errors.append(
-                f'❌ SECURITY RISK: Modified workflow file "{file}". This requires explicit maintainer review.'
+                f'[SECURITY RISK] Modified workflow file "{file}". This requires explicit maintainer review.'
             )
 else:
     print(
-        "ℹ️ Bypassing workflow modification guard because `area:ci-packaging` label is present."
+        "[INFO] Bypassing workflow modification guard because `area:ci-packaging` label is present."
     )
 
 # Rule 2: Guard against stray root-level files
@@ -82,11 +82,11 @@ for file in added_files:
         ext = os.path.splitext(basename)[1].lower()
         if ext not in allowed_root_exts and basename not in allowed_root_names:
             errors.append(
-                f'❌ STRAY FILE DETECTED: Added unrecognized root-level file "{file}". If this is intentional, please request maintainer review and ask for the root-file allowlist in .github/scripts/pr_guard.py to be updated as part of this PR. Otherwise, please remove it.'
+                f'[STRAY FILE DETECTED] Added unrecognized root-level file "{file}". If this is intentional, please request maintainer review and ask for the root-file allowlist in .github/scripts/pr_guard.py to be updated as part of this PR. Otherwise, please remove it.'
             )
 
 if errors:
-    print("🚨 PR GUARD FAILED 🚨\n")
+    print("[PR GUARD FAILED]\n")
     for err in errors:
         print(err)
     print(
@@ -95,5 +95,5 @@ if errors:
     sys.exit(1)
 else:
     print(
-        "✅ PR Guard passed. No sensitive workflow modifications or stray root files detected."
+        "[PASS] PR Guard passed. No sensitive workflow modifications or stray root files detected."
     )
